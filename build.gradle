@@ -1,0 +1,71 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:0.6.1+'
+    }
+}
+
+apply plugin: 'android'
+
+
+dependencies {
+    compile files('libs/android-support-v4.jar', 'libs/gson-2.2.4.jar')
+    // apk 'com.google.code.gson:gson:2.2.4'
+}
+
+android {
+    buildToolsVersion "21.0"
+    compileSdkVersion 19
+    
+    dependencies {
+    }
+    
+     sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.xml'
+            java.srcDirs = ['src']
+            resources.srcDirs = ['src']
+            aidl.srcDirs = ['src']
+            renderscript.srcDirs = ['src']
+            res.srcDirs = ['res']
+            assets.srcDirs = ['assets']
+        }
+
+        instrumentTest.setRoot('tests')
+    }
+    
+    defaultConfig {
+        // Fetch the version according to git latest tag and "how far are we from last tag"
+        def longVersionName = "git describe --tags --long --dirty".execute().text.trim()
+        printf("\nlongVersionName: " + longVersionName)
+        def (fullVersionTag, versionBuild, gitSha) = longVersionName.tokenize('-')
+        def(versionMajor, versionMinor, versionPatch) = fullVersionTag.tokenize('.')
+ 
+        // Set the version name
+        // versionName "$versionMajor.$versionMinor.$versionPatch($versionBuild)"
+        versionName "$longVersionName"
+        
+        // Turn the version name into a version code
+        versionCode versionMajor.toInteger() * 100000 +
+                versionMinor.toInteger() * 10000 +
+                versionPatch.toInteger() * 1000 +
+                versionBuild.toInteger()
+ 
+        // Friendly print the version output to the Gradle console
+        printf("\n--------" + "VERSION DATA--------" + "\n" + "- CODE: " + versionCode + "\n" + 
+               "- NAME: " + versionName + "\n----------------------------\n")
+    }
+    
+    signingConfigs {
+	    release {
+	    		printf("$RELEASE_STORE_FILE")
+	       	   storeFile file(RELEASE_STORE_FILE)
+		       storePassword RELEASE_STORE_PASSWORD
+		       keyAlias RELEASE_KEY_ALIAS
+		       keyPassword RELEASE_KEY_PASSWORD
+	    }
+}
+} 
