@@ -4,7 +4,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:0.6.1+'
+        classpath 'com.android.tools.build:gradle:0.11.1'
     }
 }
 
@@ -13,11 +13,18 @@ apply plugin: 'android'
 
 dependencies {
     compile files('libs/android-support-v4.jar', 'libs/gson-2.2.4.jar')
-    // apk 'com.google.code.gson:gson:2.2.4'
 }
 
+// Fetch the version according to git latest tag and "how far are we from last tag"
+def longVersionName = "git describe --tags --long --dirty".execute().text.trim()
+
+// Turn the version name into a version code
+def (fullVersionTag, versionBuild, gitSha) = longVersionName.tokenize('-')
+def(versionMajor, versionMinor, versionPatch) = fullVersionTag.tokenize('.')
+def calculatedVersionCode = versionMajor.toInteger() * 100000 + versionMinor.toInteger() * 10000 + versionPatch.toInteger() * 1000 + versionBuild.toInteger()
+
 android {
-    buildToolsVersion "21.0"
+    buildToolsVersion "21.0.1"
     compileSdkVersion 19
     
     dependencies {
@@ -38,34 +45,45 @@ android {
     }
     
     defaultConfig {
-        // Fetch the version according to git latest tag and "how far are we from last tag"
-        def longVersionName = "git describe --tags --long --dirty".execute().text.trim()
-        printf("\nlongVersionName: " + longVersionName)
-        def (fullVersionTag, versionBuild, gitSha) = longVersionName.tokenize('-')
-        def(versionMajor, versionMinor, versionPatch) = fullVersionTag.tokenize('.')
- 
+    	applicationId "$PACKAGE_NAME"
+    
         // Set the version name
-        // versionName "$versionMajor.$versionMinor.$versionPatch($versionBuild)"
         versionName "$longVersionName"
         
-        // Turn the version name into a version code
-        versionCode versionMajor.toInteger() * 100000 +
-                versionMinor.toInteger() * 10000 +
-                versionPatch.toInteger() * 1000 +
-                versionBuild.toInteger()
- 
-        // Friendly print the version output to the Gradle console
-        printf("\n--------" + "VERSION DATA--------" + "\n" + "- CODE: " + versionCode + "\n" + 
-               "- NAME: " + versionName + "\n----------------------------\n")
+        // Set the version code
+        versionCode calculatedVersionCode
     }
     
     signingConfigs {
 	    release {
-	    		printf("$RELEASE_STORE_FILE")
 	       	   storeFile file(RELEASE_STORE_FILE)
 		       storePassword RELEASE_STORE_PASSWORD
 		       keyAlias RELEASE_KEY_ALIAS
 		       keyPassword RELEASE_KEY_PASSWORD
 	    }
-}
+	}
+	
+	task appStart(type: Exec, dependsOn: 'installDebug') {
+	    // linux 
+	    commandLine "adb", "shell", "am", "start", "-n", "$PACKAGE_NAME/.$MAIN_ACTIVITY"
+	}
+	
+	preBuild.doFirst {
+		// enforce a new line
+		logger.error "\n"
+		
+		// Show some information for the current build
+	
+		logger.info "longVersionName: $longVersionName"
+		
+		//show a warning if working directory contains uncomitted changes
+        if (longVersionName.endsWith("dirty")) {
+        	logger.error "WARNING: You are building an apk with uncommited changes in your working directory!"
+        }
+        
+        // Friendly print the version output to the Gradle console
+        printf("\n--------" + "VERSION DATA--------" + "\n" + "- CODE: " + android.defaultConfig.versionCode + "\n" + 
+               "- NAME: " + android.defaultConfig.versionName + "\n----------------------------\n")
+        logger.info("Keystore for release builds: $RELEASE_STORE_FILE")
+	}
 } 
